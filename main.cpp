@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string>
 #include <regex>
-
+#include <stdlib.h>
 using namespace std;
 
 void showMenuAndProcessOption();
@@ -17,6 +17,11 @@ void togglePlayer();
 bool validateCommandSpell(string);
 bool validateCommandLegality(string);
 void continueGame();
+int getCorrespondCursor(int, int);
+char getTileStatus(int, int);
+void test();
+void move(int, int);
+int *parseCommand(string);
 
 int main()
 {
@@ -70,39 +75,141 @@ void startGame()
 void continueGame()
 {
   string command;
-  cout << "\nYour command:  ";
-  cin >> command;
-  if (validateCommandSpell(command))
+  while (command != "EXIT")
   {
-    validateCommandLegality(command);
+    system("CLS");
+    showGame();
+    cout << "\nIf you want to exit write EXIT\nYour command:  ";
+    cin >> command;
+    int *info = parseCommand(command);
+    if (validateCommandSpell(command))
+    {
+      if (validateCommandLegality(command))
+      {
+        move(getCorrespondCursor(info[0], info[1]), getCorrespondCursor(info[2], info[3]));
+        togglePlayer();
+      }
+    }
   }
+}
+
+int *parseCommand(string command)
+{
+  // sourceRow, sourceColumn, destRow, destColumn;
+  static int info[4];
+
+  // convert to ascii and subtract '0' to get order of letter
+  // then subtract from 8 to get the order in developer perspictive
+
+  // sourceRow
+  info[0] = 8 - (command[1] - '0');
+
+  // sourceColumn
+  info[1] = tolower(command[0]) - 'a';
+
+  // destRow
+  info[2] = 8 - (command[3] - '0');
+
+  // destColumn
+  info[3] = tolower(command[2]) - 'a';
+
+  return info;
 }
 
 bool validateCommandLegality(string command)
 {
-  char player = getCurrentPlayer();
-  int sourceRow, sourceColumn, destRow, destColumn;
+  char player = getCurrentPlayer(), temp;
+  int *info;
+  info = parseCommand(command);
 
-  // convert to ascii and subtract 'a' to get order of letter
-  sourceColumn = tolower(command[0]) - 'a';
-  destColumn = tolower(command[2]) - 'a';
+  // sourceRow, sourceColumn
+  temp = getTileStatus(info[0], info[1]);
 
-  // convert to ascii and subtract '0' to get order of letter
-  // then subtract from 8 to get the order in developer perspictive
-  sourceRow = 8 - (command[1] - '0');
-  destRow = 8 - (command[3] - '0');
+  // source tile check
+  // sourceRow, sourceColumn
+  if (getTileStatus(info[0], info[1]) != player)
+  {
+    cout << "\nERROR: Invalid source tile\n";
+    return false;
+  }
+
+  // is destination tile empty?
+  // destRow, destColumn
+  if (getTileStatus(info[2], info[3]) != ' ')
+  {
+    cout << "\nERROR: Unavailable destination tile\n";
+    return false;
+  }
+
+  // cross movement
+  if (info[0] != info[2] && info[1] != info[3])
+  {
+    cout << "\nERROR: Cross move\n";
+    return false;
+  }
 
   if (player == 'W')
   {
-    if (destRow <= sourceRow)
+    // destRow - sourceRow
+    if (info[2] - info[0] > 1)
+    {
+      cout << "\nERROR: More than one row\n";
       return false;
+    }
   }
   else
   {
-    if (destRow >= sourceRow)
+    // sourceRow - destRow
+    if (info[0] - info[2] > 1)
+    {
+      cout << "\nERROR: More than one row\n";
       return false;
+    }
+  }
+  // sourceColumn - destColumn
+  if (abs(info[1] - info[3]) > 1)
+  {
+    cout << "\nERROR: More than one col\n";
+    return false;
   }
   return true;
+}
+
+void move(int sourceCursor, int destCursor)
+{
+  fstream gameFile;
+  char c;
+  gameFile.open("game.dat");
+  gameFile.seekg(sourceCursor, ios::beg);
+  // get player
+  gameFile.get(c);
+
+  gameFile.seekg(sourceCursor, ios::beg);
+  gameFile << ' ';
+
+  // write on new tile
+  gameFile.seekg(destCursor, ios::beg);
+
+  gameFile << c;
+  gameFile.close();
+}
+
+int getCorrespondCursor(int row, int column)
+{
+  return 10 * row + column;
+}
+
+char getTileStatus(int row, int column)
+{
+  // cursor position
+  int cursor = getCorrespondCursor(row, column);
+  char status;
+  ifstream gameFile;
+  gameFile.open("game.dat");
+  gameFile.seekg(cursor, ios::beg);
+  gameFile.get(status);
+  gameFile.close();
+  return status;
 }
 
 bool validateCommandSpell(string command)
@@ -144,7 +251,6 @@ void initBoard()
   gameFile << "W";
   cout << "The game is initialized successfully:\n\n";
   gameFile.close();
-  showGame();
 }
 
 /**
@@ -167,7 +273,7 @@ void showGame()
       i--;
       if (i == 0)
         break;
-      cout << c << i << "  |";
+      cout << c << c << i << "  |";
     }
     else if (c == 'X')
     {
@@ -229,7 +335,22 @@ void togglePlayer()
 void updateGame()
 {
   // TODO: impelemnt this
-  system("CLS");
-  showGame();
-  cout << getCurrentPlayer();
+  //system("CLS");
+  continueGame();
+  //cout << getCurrentPlayer();
+  //test();
+}
+
+void test()
+{
+  int i, j;
+  char c;
+  fstream gameFile;
+  gameFile.open("game.dat");
+  for (i = 0; i < 80; i++)
+  {
+    gameFile.seekg(i, ios::beg);
+    gameFile.get(c);
+    cout << i << "     " << c << endl;
+  }
 }
