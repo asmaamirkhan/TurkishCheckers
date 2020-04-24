@@ -22,6 +22,7 @@ char getTileStatus(int, int);
 void test();
 void move(int, int);
 int *parseCommand(string);
+bool checkEating(int, int, int, int);
 
 int main()
 {
@@ -56,7 +57,7 @@ void processOption(int option)
     startGame();
     break;
   case 2:
-    updateGame();
+    continueGame();
     break;
   case 3:
     exit(0);
@@ -118,18 +119,16 @@ int *parseCommand(string command)
 
 bool validateCommandLegality(string command)
 {
-  char player = getCurrentPlayer(), temp;
+  char player = getCurrentPlayer();
   int *info;
   info = parseCommand(command);
-
-  // sourceRow, sourceColumn
-  temp = getTileStatus(info[0], info[1]);
 
   // source tile check
   // sourceRow, sourceColumn
   if (getTileStatus(info[0], info[1]) != player)
   {
     cout << "\nERROR: Invalid source tile\n";
+    system("pause");
     return false;
   }
 
@@ -138,6 +137,7 @@ bool validateCommandLegality(string command)
   if (getTileStatus(info[2], info[3]) != ' ')
   {
     cout << "\nERROR: Unavailable destination tile\n";
+    system("pause");
     return false;
   }
 
@@ -145,8 +145,11 @@ bool validateCommandLegality(string command)
   if (info[0] != info[2] && info[1] != info[3])
   {
     cout << "\nERROR: Cross move\n";
+    system("pause");
     return false;
   }
+
+  // checkEating(info[0], info[1], info[2], info[3]);
 
   if (player == 'W')
   {
@@ -154,6 +157,13 @@ bool validateCommandLegality(string command)
     if (info[2] - info[0] > 1)
     {
       cout << "\nERROR: More than one row\n";
+      system("pause");
+      return false;
+    }
+    else if (info[2] - info[0] < 1)
+    {
+      cout << "\nERROR: Backward move\n";
+      system("pause");
       return false;
     }
   }
@@ -163,6 +173,13 @@ bool validateCommandLegality(string command)
     if (info[0] - info[2] > 1)
     {
       cout << "\nERROR: More than one row\n";
+      system("pause");
+      return false;
+    }
+    else if (info[0] - info[2] < 1)
+    {
+      cout << "\nERROR: Backward move\n";
+      system("pause");
       return false;
     }
   }
@@ -170,9 +187,16 @@ bool validateCommandLegality(string command)
   if (abs(info[1] - info[3]) > 1)
   {
     cout << "\nERROR: More than one col\n";
+    system("pause");
     return false;
   }
   return true;
+}
+
+
+bool checkEating(int sourceRow, int sourceCol, int destRow, int destCol){
+  char temp = getTileStatus(destRow, destCol);
+  return false;
 }
 
 void move(int sourceCursor, int destCursor)
@@ -217,6 +241,8 @@ bool validateCommandSpell(string command)
   regex pattern("[a-h][1-8][a-h][1-8]", regex_constants::icase);
   if (regex_match(command, pattern))
     return true;
+  cout << "\nERROR: Invalid command format\n";
+  system("pause");
   return false;
 }
 
@@ -336,7 +362,7 @@ void updateGame()
 {
   // TODO: impelemnt this
   //system("CLS");
-  continueGame();
+  //continueGame();
   //cout << getCurrentPlayer();
   //test();
 }
