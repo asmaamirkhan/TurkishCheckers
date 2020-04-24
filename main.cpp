@@ -9,20 +9,26 @@ using namespace std;
 void showMenuAndProcessOption();
 void startGame();
 void initBoard();
-void updateGame();
 void processOption(int);
 void showGame();
 char getCurrentPlayer();
+char getOppositePlayer(char);
 void togglePlayer();
+void runCommand(string);
+bool validateCommandTiles(char, int, int);
 bool validateCommandSpell(string);
-bool validateCommandLegality(string);
+int validateEatingAndGetNeighbor(char, int, int, int, int);
+bool isCrossMovement(int, int, int, int);
+bool validateLocations(char, int, int, int, int);
 void continueGame();
 int getCorrespondCursor(int, int);
+char getTileStatus(int);
 char getTileStatus(int, int);
-void test();
 void move(int, int);
 int *parseCommand(string);
-bool checkEating(int, int, int, int);
+void clearTile(int);
+bool isEmpty(int);
+
 
 int main()
 {
@@ -83,15 +89,143 @@ void continueGame()
     cout << "\nIf you want to exit write EXIT\nYour command:  ";
     cin >> command;
     int *info = parseCommand(command);
-    if (validateCommandSpell(command))
+    runCommand(command);
+  }
+}
+
+void runCommand(string command)
+{
+  int *info;
+
+  // get sourceRow, sourceCol, destRow and destCol
+  info = parseCommand(command);
+  int sourceCursor = getCorrespondCursor(info[0], info[1]);
+  int destCursor = getCorrespondCursor(info[2], info[3]);
+  char player = getCurrentPlayer();
+
+  if (validateCommandSpell(command))
+  {
+    if (validateCommandTiles(player, sourceCursor, destCursor))
     {
-      if (validateCommandLegality(command))
+      if (!isCrossMovement(info[0], info[1], info[2], info[3]))
       {
-        move(getCorrespondCursor(info[0], info[1]), getCorrespondCursor(info[2], info[3]));
-        togglePlayer();
+        int neighbor = validateEatingAndGetNeighbor(player, info[0], info[1], info[2], info[3]);
+        if (neighbor != -1)
+        {
+          move(sourceCursor, destCursor);
+          clearTile(neighbor);
+          cout << "\nEating is done\n";
+          system("pause");
+        }
+        else if (validateLocations(player, info[0], info[1], info[2], info[3]))
+        {
+          move(sourceCursor, destCursor);
+          togglePlayer();
+        }
       }
     }
   }
+}
+
+bool validateLocations(char player, int sourceRow, int sourceCol, int destRow, int destCol)
+{
+
+  if (player == 'W')
+  {
+    if (destRow - sourceRow > 1)
+    {
+      cout << "\nERROR: More than one row\n";
+      system("pause");
+      return false;
+    }
+    if (destRow < sourceRow)
+    {
+      cout << "\nERROR: Backward move\n";
+      system("pause");
+      return false;
+    }
+  }
+  else
+  {
+    //7->5 N        7->6 Y
+    if (sourceRow - destRow > 1)
+    {
+      cout << "\nERROR: More than one row\n";
+      system("pause");
+      return false;
+    }
+    //6->7 N        7->6 Y
+    if (destRow > sourceRow)
+    {
+      cout << "\nERROR: Backward move\n";
+      system("pause");
+      return false;
+    }
+  }
+  if (abs(sourceCol - destCol) > 1)
+  {
+    cout << "\nERROR: More than one col\n";
+    system("pause");
+    return false;
+  }
+  return true;
+}
+
+bool validateCommandTiles(char player, int sourceCursor, int destCursor)
+{
+  // source tile check
+  if (getTileStatus(sourceCursor) != player)
+  {
+    cout << "\nERROR: Invalid source tile\n";
+    system("pause");
+    return false;
+  }
+
+  // is destination tile empty?
+  if (!isEmpty(destCursor))
+  {
+    cout << "\nERROR: Unavailable destination tile\n";
+    system("pause");
+    return false;
+  }
+  return true;
+}
+
+bool isCrossMovement(int sourceRow, int sourceCol, int destRow, int destCol)
+{
+  if (sourceRow != destRow && sourceCol != destCol)
+  {
+    cout << "\nERROR: Cross move\n";
+    system("pause");
+    return true;
+  }
+  return false;
+}
+
+int validateEatingAndGetNeighbor(char player, int sourceRow, int sourceCol, int destRow, int destCol)
+{
+  if (player == 'W')
+  {
+    // WARN: dama kontrolü eklenmeli
+    if (getTileStatus(destRow - 1, sourceCol) == getOppositePlayer(player))
+    {
+      return getCorrespondCursor(sourceRow + 1, sourceCol);
+    }
+  }
+  else
+  {
+    // WARN: dama kontrolü eklenmeli
+    if (getTileStatus(destRow + 1, sourceCol) == getOppositePlayer(player))
+    {
+      return getCorrespondCursor(sourceRow - 1, sourceCol);
+    }
+  }
+  int neighborCol = sourceCol + (destCol - sourceCol) / 2;
+  if (getTileStatus(sourceRow, neighborCol) == getOppositePlayer(player))
+  {
+    return getCorrespondCursor(sourceRow, neighborCol);
+  }
+  return -1;
 }
 
 int *parseCommand(string command)
@@ -117,88 +251,6 @@ int *parseCommand(string command)
   return info;
 }
 
-bool validateCommandLegality(string command)
-{
-  char player = getCurrentPlayer();
-  int *info;
-  info = parseCommand(command);
-
-  // source tile check
-  // sourceRow, sourceColumn
-  if (getTileStatus(info[0], info[1]) != player)
-  {
-    cout << "\nERROR: Invalid source tile\n";
-    system("pause");
-    return false;
-  }
-
-  // is destination tile empty?
-  // destRow, destColumn
-  if (getTileStatus(info[2], info[3]) != ' ')
-  {
-    cout << "\nERROR: Unavailable destination tile\n";
-    system("pause");
-    return false;
-  }
-
-  // cross movement
-  if (info[0] != info[2] && info[1] != info[3])
-  {
-    cout << "\nERROR: Cross move\n";
-    system("pause");
-    return false;
-  }
-
-  // checkEating(info[0], info[1], info[2], info[3]);
-
-  if (player == 'W')
-  {
-    // destRow - sourceRow
-    if (info[2] - info[0] > 1)
-    {
-      cout << "\nERROR: More than one row\n";
-      system("pause");
-      return false;
-    }
-    else if (info[2] - info[0] < 1)
-    {
-      cout << "\nERROR: Backward move\n";
-      system("pause");
-      return false;
-    }
-  }
-  else
-  {
-    // sourceRow - destRow
-    if (info[0] - info[2] > 1)
-    {
-      cout << "\nERROR: More than one row\n";
-      system("pause");
-      return false;
-    }
-    else if (info[0] - info[2] < 1)
-    {
-      cout << "\nERROR: Backward move\n";
-      system("pause");
-      return false;
-    }
-  }
-  // sourceColumn - destColumn
-  if (abs(info[1] - info[3]) > 1)
-  {
-    cout << "\nERROR: More than one col\n";
-    system("pause");
-    return false;
-  }
-  return true;
-}
-
-
-bool checkEating(int sourceRow, int sourceCol, int destRow, int destCol){
-  char temp = getTileStatus(destRow, destCol);
-  return false;
-}
-
 void move(int sourceCursor, int destCursor)
 {
   fstream gameFile;
@@ -208,8 +260,7 @@ void move(int sourceCursor, int destCursor)
   // get player
   gameFile.get(c);
 
-  gameFile.seekg(sourceCursor, ios::beg);
-  gameFile << ' ';
+  clearTile(sourceCursor);
 
   // write on new tile
   gameFile.seekg(destCursor, ios::beg);
@@ -218,9 +269,41 @@ void move(int sourceCursor, int destCursor)
   gameFile.close();
 }
 
+void clearTile(int cursor)
+{
+  fstream gameFile;
+  char c;
+  gameFile.open("game.dat");
+  gameFile.seekg(cursor, ios::beg);
+  gameFile << ' ';
+  gameFile.close();
+}
+
+bool isEmpty(int cursor)
+{
+  fstream gameFile;
+  char c;
+  gameFile.open("game.dat");
+  gameFile.seekg(cursor, ios::beg);
+  gameFile.get(c);
+  gameFile.close();
+  return c == ' ';
+}
+
 int getCorrespondCursor(int row, int column)
 {
   return 10 * row + column;
+}
+
+char getTileStatus(int cursor)
+{
+  char status;
+  ifstream gameFile;
+  gameFile.open("game.dat");
+  gameFile.seekg(cursor, ios::beg);
+  gameFile.get(status);
+  gameFile.close();
+  return status;
 }
 
 char getTileStatus(int row, int column)
@@ -339,6 +422,13 @@ char getCurrentPlayer()
   return player;
 }
 
+char getOppositePlayer(char currentPlayer)
+{
+  if (currentPlayer == 'B')
+    return 'W';
+  return 'B';
+}
+
 void togglePlayer()
 {
   string player;
@@ -358,25 +448,3 @@ void togglePlayer()
   gameFile.close();
 }
 
-void updateGame()
-{
-  // TODO: impelemnt this
-  //system("CLS");
-  //continueGame();
-  //cout << getCurrentPlayer();
-  //test();
-}
-
-void test()
-{
-  int i, j;
-  char c;
-  fstream gameFile;
-  gameFile.open("game.dat");
-  for (i = 0; i < 80; i++)
-  {
-    gameFile.seekg(i, ios::beg);
-    gameFile.get(c);
-    cout << i << "     " << c << endl;
-  }
-}
