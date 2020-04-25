@@ -9,6 +9,7 @@ using namespace std;
 void showMenuAndProcessOption();
 void startGame();
 void initBoard();
+void initLogFile();
 void processOption(int);
 void showGame();
 char getCurrentPlayer();
@@ -18,17 +19,21 @@ void runCommand(string);
 bool validateCommandTiles(char, int, int);
 bool validateCommandSpell(string);
 int validateEatingAndGetNeighbor(char, int, int, int, int);
+bool validateCheckerRoad(char, int, int, int, int);
+bool doCheckerRoad(int, int, int, int);
 bool isCrossMovement(int, int, int, int);
 bool validateLocations(char, int, int, int, int);
 void continueGame();
 int getCorrespondCursor(int, int);
 char getTileStatus(int);
 char getTileStatus(int, int);
-void move(int, int);
+void move(int, int, int, char);
 int *parseCommand(string);
 void clearTile(int);
 bool isEmpty(int);
-
+void makeChecker(int, char);
+char getCorrespondChecker(char);
+void logCommand(string);
 
 int main()
 {
@@ -76,6 +81,7 @@ void processOption(int option)
 void startGame()
 {
   initBoard();
+  initLogFile();
   continueGame();
 }
 
@@ -88,9 +94,24 @@ void continueGame()
     showGame();
     cout << "\nIf you want to exit write EXIT\nYour command:  ";
     cin >> command;
-    int *info = parseCommand(command);
     runCommand(command);
   }
+}
+
+void logCommand(string command)
+{
+  string line;
+  fstream logFile;
+  logFile.open("log.dat", ios::app);
+  if (logFile.fail())
+  {
+    cerr << "An error occurred while opening log file" << endl;
+    logFile.close();
+    exit(1);
+  }
+
+  logFile << getCurrentPlayer() << ':' << command << endl;
+  logFile.close();
 }
 
 void runCommand(string command)
@@ -112,15 +133,23 @@ void runCommand(string command)
         int neighbor = validateEatingAndGetNeighbor(player, info[0], info[1], info[2], info[3]);
         if (neighbor != -1)
         {
-          move(sourceCursor, destCursor);
+          move(sourceCursor, destCursor, info[2], player);
           clearTile(neighbor);
+          logCommand(command);
           cout << "\nEating is done\n";
           system("pause");
         }
         else if (validateLocations(player, info[0], info[1], info[2], info[3]))
         {
-          move(sourceCursor, destCursor);
+          move(sourceCursor, destCursor, info[2], player);
+          logCommand(command);
           togglePlayer();
+        }
+        else if (validateCheckerRoad(player, info[0], info[1], info[2], info[3]))
+        {
+          if (!doCheckerRoad(info[0], info[1], info[2], info[3]))
+            togglePlayer();
+          logCommand(command);
         }
       }
     }
@@ -129,17 +158,21 @@ void runCommand(string command)
 
 bool validateLocations(char player, int sourceRow, int sourceCol, int destRow, int destCol)
 {
-
+  char sourceStatus = getTileStatus(sourceRow, sourceCol);
   if (player == 'W')
   {
     if (destRow - sourceRow > 1)
     {
+      if (sourceStatus == 'X')
+        return true;
       cout << "\nERROR: More than one row\n";
       system("pause");
       return false;
     }
     if (destRow < sourceRow)
     {
+      if (sourceStatus == 'X')
+        return true;
       cout << "\nERROR: Backward move\n";
       system("pause");
       return false;
@@ -150,6 +183,8 @@ bool validateLocations(char player, int sourceRow, int sourceCol, int destRow, i
     //7->5 N        7->6 Y
     if (sourceRow - destRow > 1)
     {
+      if (sourceStatus == 'Y')
+        return true;
       cout << "\nERROR: More than one row\n";
       system("pause");
       return false;
@@ -157,6 +192,8 @@ bool validateLocations(char player, int sourceRow, int sourceCol, int destRow, i
     //6->7 N        7->6 Y
     if (destRow > sourceRow)
     {
+      if (sourceStatus == 'Y')
+        return true;
       cout << "\nERROR: Backward move\n";
       system("pause");
       return false;
@@ -164,6 +201,8 @@ bool validateLocations(char player, int sourceRow, int sourceCol, int destRow, i
   }
   if (abs(sourceCol - destCol) > 1)
   {
+    if (sourceStatus == 'X' || sourceStatus == 'Y')
+      return true;
     cout << "\nERROR: More than one col\n";
     system("pause");
     return false;
@@ -174,8 +213,18 @@ bool validateLocations(char player, int sourceRow, int sourceCol, int destRow, i
 bool validateCommandTiles(char player, int sourceCursor, int destCursor)
 {
   // source tile check
-  if (getTileStatus(sourceCursor) != player)
+  char status = getTileStatus(sourceCursor);
+  if (status == 'X' || status == 'W')
   {
+    status = 'W';
+  }
+  else if (status == 'Y' || status == 'B')
+  {
+    status = 'B';
+  }
+  if (status != player)
+  {
+    cout << "\nSOURCE" << status << endl;
     cout << "\nERROR: Invalid source tile\n";
     system("pause");
     return false;
@@ -204,10 +253,12 @@ bool isCrossMovement(int sourceRow, int sourceCol, int destRow, int destCol)
 
 int validateEatingAndGetNeighbor(char player, int sourceRow, int sourceCol, int destRow, int destCol)
 {
+
+  // dikey mı?
   if (player == 'W')
   {
     // WARN: dama kontrolü eklenmeli
-    if (getTileStatus(destRow - 1, sourceCol) == getOppositePlayer(player))
+    if (getTileStatus(destRow - 1, sourceCol) == getOppositePlayer(player) && sourceCol == destCol)
     {
       return getCorrespondCursor(sourceRow + 1, sourceCol);
     }
@@ -215,13 +266,13 @@ int validateEatingAndGetNeighbor(char player, int sourceRow, int sourceCol, int 
   else
   {
     // WARN: dama kontrolü eklenmeli
-    if (getTileStatus(destRow + 1, sourceCol) == getOppositePlayer(player))
+    if (getTileStatus(destRow + 1, sourceCol) == getOppositePlayer(player) && sourceCol == destCol)
     {
       return getCorrespondCursor(sourceRow - 1, sourceCol);
     }
   }
   int neighborCol = sourceCol + (destCol - sourceCol) / 2;
-  if (getTileStatus(sourceRow, neighborCol) == getOppositePlayer(player))
+  if (getTileStatus(sourceRow, neighborCol) == getOppositePlayer(player) && sourceCol != destCol)
   {
     return getCorrespondCursor(sourceRow, neighborCol);
   }
@@ -251,7 +302,7 @@ int *parseCommand(string command)
   return info;
 }
 
-void move(int sourceCursor, int destCursor)
+void move(int sourceCursor, int destCursor, int destRow, char player)
 {
   fstream gameFile;
   char c;
@@ -262,10 +313,144 @@ void move(int sourceCursor, int destCursor)
 
   clearTile(sourceCursor);
 
-  // write on new tile
-  gameFile.seekg(destCursor, ios::beg);
+  if (destRow == 0 || destRow == 7)
+  {
+    makeChecker(destCursor, player);
+    gameFile.close();
+  }
 
-  gameFile << c;
+  else
+  {
+    // write on new tile
+    gameFile.seekg(destCursor, ios::beg);
+    gameFile << c;
+    gameFile.close();
+  }
+}
+
+bool validateCheckerRoad(char player, int sourceRow, int sourceCol, int destRow, int destCol)
+{
+  int a, b;
+  // yatay
+  if (sourceRow == destRow)
+  {
+    if (sourceCol > destCol)
+    {
+      a = destCol;
+      b = sourceCol;
+    }
+    else
+    {
+      a = sourceCol;
+      b = destCol;
+    }
+    while (a != b)
+    {
+      if (!isEmpty(getCorrespondCursor(sourceRow, a)) && !isEmpty(getCorrespondCursor(sourceRow, a + 1)))
+        return false;
+      if (getTileStatus(sourceRow, a) == player || getTileStatus(sourceRow, a) == getCorrespondChecker(player))
+        return false;
+      a++;
+    }
+  }
+  // dikey
+  else
+  {
+    if (sourceRow > destRow)
+    {
+      a = sourceRow;
+      b = destRow;
+    }
+    else
+    {
+      a = destRow;
+      b = sourceRow;
+    }
+    while (a != b)
+    {
+      if (!isEmpty(getCorrespondCursor(a, sourceCol)) && !isEmpty(getCorrespondCursor(a + 1, sourceCol)))
+        return false;
+      if (getTileStatus(a, sourceCol) == player || getTileStatus(a, sourceCol) == getCorrespondChecker(player))
+        return false;
+      a++;
+    }
+  }
+  return true;
+}
+
+bool doCheckerRoad(int sourceRow, int sourceCol, int destRow, int destCol)
+{
+  cout << "rows: " << sourceRow << "  " << destRow << endl;
+  system("pause");
+  bool eat = false;
+  move(getCorrespondCursor(sourceRow, sourceCol), getCorrespondCursor(destRow, destCol), destRow, getCorrespondChecker(getCurrentPlayer()));
+  int a, b;
+  // yatay
+  if (sourceRow == destRow)
+  {
+    if (sourceCol > destCol)
+    {
+      a = destCol;
+      b = sourceCol;
+    }
+    else
+    {
+      a = sourceCol;
+      b = destCol;
+    }
+    while (a != b)
+    {
+      if (getTileStatus(sourceRow, a) != ' ')
+        eat = true;
+      clearTile(getCorrespondCursor(sourceRow, a));
+      a++;
+    }
+  }
+  // dikey
+  else
+  {
+    if (sourceRow > destRow)
+    {
+      a = destRow;
+      b = sourceRow;
+    }
+    else
+    {
+      a = sourceRow;
+      b = destRow;
+    }
+
+    while (a != b)
+    {
+      if (getTileStatus(a, sourceCol) != ' ')
+        eat = true;
+      cout << "ab: " << a << "  " << b << endl;
+      system("pause");
+      clearTile(getCorrespondCursor(a, sourceCol));
+      a++;
+    }
+  }
+  return eat;
+}
+
+char getCorrespondChecker(char player)
+{
+  if (player == 'W')
+    return 'X';
+  else
+    return 'Y';
+}
+
+void makeChecker(int cursor, char player)
+{
+  fstream gameFile;
+  char c;
+  gameFile.open("game.dat");
+  gameFile.seekg(cursor, ios::beg);
+  if (player == 'W')
+    gameFile << 'X';
+  else
+    gameFile << 'Y';
   gameFile.close();
 }
 
@@ -362,6 +547,11 @@ void initBoard()
   gameFile.close();
 }
 
+void initLogFile()
+{
+  ofstream logFile{"log.dat"};
+}
+
 /**
   * @brief Prints last status of game on the console
   */
@@ -402,7 +592,6 @@ void showGame()
   {
     cout << "\t" << char(i);
   }
-  getCurrentPlayer();
   cout << "\n\nCurrent Player: " << getCurrentPlayer() << endl;
   gameFile.close();
 }
@@ -431,20 +620,19 @@ char getOppositePlayer(char currentPlayer)
 
 void togglePlayer()
 {
-  string player;
+  char player;
   fstream gameFile;
   gameFile.open("game.dat");
   gameFile.seekg(-1, ios::end);
-  getline(gameFile, player);
-  gameFile.seekg(-1, ios::cur);
-  if (player == "W")
+  gameFile.get(player);
+  gameFile.seekg(-1, ios::end);
+  if (player == 'W')
   {
-    gameFile << "B";
+    gameFile << 'B';
   }
   else
   {
-    gameFile << "W";
+    gameFile << 'W';
   }
   gameFile.close();
 }
-
