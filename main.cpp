@@ -1,3 +1,7 @@
+/**
+ * Name-Surname: Asmaa Mirkhan
+ * Student ID: 1306161419 
+*/
 #include <iostream>
 #include <fstream>
 #include <stdlib.h>
@@ -14,6 +18,7 @@ void initLogFile();
 void processOption(int);
 void showGame();
 void continueGame();
+bool isEnd();
 
 // Player and Tile
 char getCurrentPlayer();
@@ -109,9 +114,13 @@ void continueGame()
   {
     system("CLS");
     showGame();
+    if (isEnd())
+    {
+      break;
+    }
     cout << "\nIf you want to exit write EXIT\nYour command:  ";
     cin >> command;
-    if (command != "EXIT")
+    if (command == "EXIT")
       break;
     runCommand(command);
   }
@@ -470,17 +479,18 @@ bool validateCheckerRoad(char player, int sourceRow, int sourceCol, int destRow,
     if (sourceRow > destRow)
     {
       a = destRow + 1;
-      b = sourceRow;
+      b = sourceRow-1;
     }
     else
     {
       a = sourceRow + 1;
-      b = destRow;
+      b = destRow-1;
     }
     while (a != b)
     {
       if (!isEmpty(getCorrespondCursor(a, sourceCol)) && !isEmpty(getCorrespondCursor(a + 1, sourceCol)))
       {
+        cout<<endl<<getTileStatus(getCorrespondCursor(a, sourceCol))<<"  "<<getTileStatus(getCorrespondCursor(a + 1, sourceCol));
         cout << "\ndikey filled two neighbor tiles case\n";
         system("pause");
         return false;
@@ -815,4 +825,42 @@ void togglePlayer()
     gameFile << 'W';
   }
   gameFile.close();
+}
+
+/**
+  * @brief checks if the game has ended
+  * @return true if the game has ended
+  */
+bool isEnd()
+{
+  fstream gameFile;
+  gameFile.open("game.dat");
+  char tile, winner;
+  int black = 0, white = 0, i;
+  for (i = 0; i < 80; i++)
+  {
+    gameFile.seekg(i, ios::beg);
+    gameFile.get(tile);
+    if (tile == 'W' || tile == 'X')
+    {
+      white++;
+    }
+    else if (tile == 'B' || tile == 'Y')
+    {
+      black++;
+    }
+    if (white > 0 && black > 0)
+    {
+      return false;
+    }
+  }
+
+  if (white > 0)
+    winner = 'W';
+  else
+    winner = 'B';
+
+  cout << "\nThe game has ended" << endl
+       << "The winner is: " << winner << endl;
+  return true;
 }
