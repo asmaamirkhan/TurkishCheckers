@@ -88,6 +88,9 @@ void processOption(int option)
   }
 }
 
+/**
+  * @brief starts new game with new board
+  */
 void startGame()
 {
   initBoard();
@@ -95,19 +98,28 @@ void startGame()
   continueGame();
 }
 
+/**
+  * @brief continues the game from last saved position by cleaning the console, 
+  *        printing the board and getting new command from the player
+  */
 void continueGame()
 {
   string command;
-  while (command != "EXIT")
+  while (1 == 1)
   {
     system("CLS");
     showGame();
     cout << "\nIf you want to exit write EXIT\nYour command:  ";
     cin >> command;
+    if (command != "EXIT")
+      break;
     runCommand(command);
   }
 }
 
+/**
+  * @brief saves player's command to log file
+  */
 void logCommand(string command)
 {
   string line;
@@ -124,6 +136,10 @@ void logCommand(string command)
   logFile.close();
 }
 
+/**
+  * @brief runs the entered command after doing required validations
+  * @param command: string
+  */
 void runCommand(string command)
 {
   int *info;
@@ -154,18 +170,28 @@ void runCommand(string command)
         }
         else
         {
+          // neighbor cursor
           int neighbor = validateEatingAndGetNeighbor(player, info[0], info[1], info[2], info[3]);
           if (neighbor != -1)
           {
+            // do moving
             move(sourceCursor, destCursor, info[2], player);
+
+            // clear eaten tile
+            // don't toggle player
             clearTile(neighbor);
+
+            // save command to log file
             logCommand(command);
             cout << "\nEating is done\n";
             system("pause");
           }
           else if (validateLocations(player, info[0], info[1], info[2], info[3]))
           {
+            // do moving
             move(sourceCursor, destCursor, info[2], player);
+
+            // save command to log file
             logCommand(command);
             togglePlayer();
           }
@@ -175,11 +201,21 @@ void runCommand(string command)
   }
 }
 
+/**
+  * @brief validates locations of source and destination tiles for normal player 
+  * @param player: char, current player
+  * @param sourceRow: int, source row
+  * @param sourceCol: int, source column
+  * @param destRow: int, destination row
+  * @param destCol: int, destination column
+  * @return true if it is valid
+  */
 bool validateLocations(char player, int sourceRow, int sourceCol, int destRow, int destCol)
 {
   char sourceStatus = getTileStatus(sourceRow, sourceCol);
   if (player == 'W')
   {
+    // more than one row movement check
     if (destRow - sourceRow > 1)
     {
       if (sourceStatus == 'X')
@@ -188,6 +224,7 @@ bool validateLocations(char player, int sourceRow, int sourceCol, int destRow, i
       system("pause");
       return false;
     }
+    // backward movement check
     if (destRow < sourceRow)
     {
       if (sourceStatus == 'X')
@@ -199,7 +236,7 @@ bool validateLocations(char player, int sourceRow, int sourceCol, int destRow, i
   }
   else
   {
-    //7->5 N        7->6 Y
+    // more than one row movement check
     if (sourceRow - destRow > 1)
     {
       if (sourceStatus == 'Y')
@@ -208,7 +245,7 @@ bool validateLocations(char player, int sourceRow, int sourceCol, int destRow, i
       system("pause");
       return false;
     }
-    //6->7 N        7->6 Y
+    // backward movement check
     if (destRow > sourceRow)
     {
       if (sourceStatus == 'Y')
@@ -218,6 +255,7 @@ bool validateLocations(char player, int sourceRow, int sourceCol, int destRow, i
       return false;
     }
   }
+  // more than one column movement check
   if (abs(sourceCol - destCol) > 1)
   {
     if (sourceStatus == 'X' || sourceStatus == 'Y')
@@ -229,6 +267,13 @@ bool validateLocations(char player, int sourceRow, int sourceCol, int destRow, i
   return true;
 }
 
+/**
+  * @brief validates status of source and destination tiles 
+  * @param player: char, current player
+  * @param sourceCursor: int, source cursor
+  * @param destCursor: int, destination cursor
+  * @return true if it is valid
+  */
 bool validateCommandTiles(char player, int sourceCursor, int destCursor)
 {
   // source tile check
@@ -259,6 +304,14 @@ bool validateCommandTiles(char player, int sourceCursor, int destCursor)
   return true;
 }
 
+/**
+  * @brief checks either that it is a cross movement 
+  * @param sourceRow: int, source row
+  * @param sourceCol: int, source column
+  * @param destRow: int, destination row
+  * @param sourceCol: int, destination column
+  * @return true if it is cross movement
+  */
 bool isCrossMovement(int sourceRow, int sourceCol, int destRow, int destCol)
 {
   if (sourceRow != destRow && sourceCol != destCol)
@@ -270,10 +323,18 @@ bool isCrossMovement(int sourceRow, int sourceCol, int destRow, int destCol)
   return false;
 }
 
+/**
+  * @brief checks if there is an eating movement and returns the cursor of the tile will be eaten
+  *        and returns -1 if there is no eating movement
+  * @param player: char, current player
+  * @param sourceRow: int, source row
+  * @param sourceCol: int, source column
+  * @param destRow: int, destination row
+  * @param sourceCol: int, destination column
+  */
 int validateEatingAndGetNeighbor(char player, int sourceRow, int sourceCol, int destRow, int destCol)
 {
-
-  // dikey mı?
+  // is it vertical?
   if (player == 'W')
   {
     if (getTileStatus(destRow - 1, sourceCol) == getOppositePlayer(player) && sourceCol == destCol && destRow == sourceRow + 2)
@@ -288,6 +349,7 @@ int validateEatingAndGetNeighbor(char player, int sourceRow, int sourceCol, int 
       return getCorrespondCursor(sourceRow - 1, sourceCol);
     }
   }
+  // is it horizontal
   int neighborCol = sourceCol + (destCol - sourceCol) / 2;
   if (getTileStatus(sourceRow, neighborCol) == getOppositePlayer(player) && sourceCol != destCol)
   {
@@ -296,6 +358,11 @@ int validateEatingAndGetNeighbor(char player, int sourceRow, int sourceCol, int 
   return -1;
 }
 
+/**
+  * @brief parses user's command and returns it as an array
+  * @param command: string, user's command
+  * @return array of int values extracted from command: sourceRow, sourceColumn, destRow, destColumn 
+  */
 int *parseCommand(string command)
 {
   // sourceRow, sourceColumn, destRow, destColumn;
@@ -319,6 +386,13 @@ int *parseCommand(string command)
   return info;
 }
 
+/**
+  * @brief moves the stamp from specified cursor to specified cursor and makes it checker if it should
+  * @param sourceCursor: int, source cursor
+  * @param destCursor: int, destination cursor
+  * @param destRow: int, destination row
+  * @param player: char, current player
+  */
 void move(int sourceCursor, int destCursor, int destRow, char player)
 {
   fstream gameFile;
@@ -329,7 +403,7 @@ void move(int sourceCursor, int destCursor, int destRow, char player)
   gameFile.get(c);
 
   clearTile(sourceCursor);
-
+  // shloud it be checker?
   if (destRow == 0 || destRow == 7)
   {
     makeChecker(destCursor);
@@ -345,10 +419,18 @@ void move(int sourceCursor, int destCursor, int destRow, char player)
   }
 }
 
+/**
+  * @brief validates road of a checker
+  * @param player: char, current player
+  * @param sourceRow: int, source row
+  * @param sourceCol: int, source column
+  * @param destRow: int, destination row
+  * @param destCol: int, destination column
+  */
 bool validateCheckerRoad(char player, int sourceRow, int sourceCol, int destRow, int destCol)
 {
   int a, b;
-  // yatay
+  // horizontal checking
   if (sourceRow == destRow)
   {
     if (sourceCol > destCol)
@@ -367,6 +449,7 @@ bool validateCheckerRoad(char player, int sourceRow, int sourceCol, int destRow,
       if (!isEmpty(getCorrespondCursor(sourceRow, a)) && !isEmpty(getCorrespondCursor(sourceRow, a + 1)))
       {
         cout << "\nfilled two neighbor tiles case\n";
+        system("pause");
         return false;
       }
 
@@ -374,13 +457,14 @@ bool validateCheckerRoad(char player, int sourceRow, int sourceCol, int destRow,
       if (getTileStatus(sourceRow, a) == player || getTileStatus(sourceRow, a) == getCorrespondChecker(player))
       {
         cout << "\nthe tile is filled with the current player\n";
+        system("pause");
         return false;
       }
 
       a++;
     }
   }
-  // dikey
+  // vertical checking
   else
   {
     if (sourceRow > destRow)
@@ -398,11 +482,13 @@ bool validateCheckerRoad(char player, int sourceRow, int sourceCol, int destRow,
       if (!isEmpty(getCorrespondCursor(a, sourceCol)) && !isEmpty(getCorrespondCursor(a + 1, sourceCol)))
       {
         cout << "\ndikey filled two neighbor tiles case\n";
+        system("pause");
         return false;
       }
       if (getTileStatus(a, sourceCol) == player || getTileStatus(a, sourceCol) == getCorrespondChecker(player))
       {
         cout << "\ndikey the tile is filled with the current player\n";
+        system("pause");
         return false;
       }
       a++;
@@ -411,12 +497,19 @@ bool validateCheckerRoad(char player, int sourceRow, int sourceCol, int destRow,
   return true;
 }
 
+/**
+  * @brief executes road of a checker
+  * @param sourceRow: int, source row
+  * @param sourceCol: int, source column
+  * @param destRow: int, destination row
+  * @param destCol: int, destination column
+  */
 bool doCheckerRoad(int sourceRow, int sourceCol, int destRow, int destCol)
 {
   bool eat = false;
   move(getCorrespondCursor(sourceRow, sourceCol), getCorrespondCursor(destRow, destCol), destRow, getCorrespondChecker(getCurrentPlayer()));
   int a, b;
-  // yatay
+  // horizontal execution
   if (sourceRow == destRow)
   {
     if (sourceCol > destCol)
@@ -437,7 +530,7 @@ bool doCheckerRoad(int sourceRow, int sourceCol, int destRow, int destCol)
       a++;
     }
   }
-  // dikey
+  // vertical execution
   else
   {
     if (sourceRow > destRow)
@@ -462,6 +555,11 @@ bool doCheckerRoad(int sourceRow, int sourceCol, int destRow, int destCol)
   return eat;
 }
 
+/**
+  * @brief returns the corresponding checker of a player
+  * @param player: char, player
+  * @return checker: char, corresponding checker
+  */
 char getCorrespondChecker(char player)
 {
   if (player == 'W')
@@ -470,6 +568,10 @@ char getCorrespondChecker(char player)
     return 'Y';
 }
 
+/**
+  * @brief changes the status of a stamp to checker
+  * @param cursor: int, cursor must be changed
+  */
 void makeChecker(int cursor)
 {
   fstream gameFile;
@@ -484,6 +586,10 @@ void makeChecker(int cursor)
   gameFile.close();
 }
 
+/**
+  * @brief clears the tile and makes it empty
+  * @param cursor: int, cursor of tile to cleared
+  */
 void clearTile(int cursor)
 {
   fstream gameFile;
@@ -494,11 +600,22 @@ void clearTile(int cursor)
   gameFile.close();
 }
 
+/**
+  * @brief calculates the cursor position by row and column
+  * @param row: int, row value on the board
+  * @param column: int, column value on the board
+  * @return cursor: int, cursor of tile to cleared
+  */
 int getCorrespondCursor(int row, int column)
 {
   return 10 * row + column;
 }
 
+/**
+  * @brief returns status of a tile by cursor
+  * @param corsur: int, corsur position in the file
+  * @return cursor: int, cursor of tile to cleared
+  */
 char getTileStatus(int cursor)
 {
   char status;
@@ -510,6 +627,12 @@ char getTileStatus(int cursor)
   return status;
 }
 
+/**
+  * @brief returns status of a tile by row and column
+  * @param row: int, row value on the board
+  * @param column: int, column value on the board
+  * @return cursor: char, status of the tile
+  */
 char getTileStatus(int row, int column)
 {
   // cursor position
@@ -523,18 +646,33 @@ char getTileStatus(int row, int column)
   return status;
 }
 
+/**
+  * @brief checks if it is a checker by cursor
+  * @param corsur: int, corsur position in the file
+  * @return true if it is a checker
+  */
 bool isChecker(int cursor)
 {
   char status = getTileStatus(cursor);
   return status == 'X' || status == 'Y';
 }
 
+/**
+  * @brief checks if a tile is empty by cursor
+  * @param corsur: int, corsur position in the file
+  * @return true if it is empty
+  */
 bool isEmpty(int cursor)
 {
   char status = getTileStatus(cursor);
   return status == ' ';
 }
 
+/**
+  * @brief validates command spell by regex
+  * @param command: string, user's command
+  * @return true if it is valid
+  */
 bool validateCommandSpell(string command)
 {
   regex pattern("[a-h][1-8][a-h][1-8]", regex_constants::icase);
@@ -578,6 +716,9 @@ void initBoard()
   gameFile.close();
 }
 
+/**
+  * @brief creates log file at the start of the game
+  */
 void initLogFile()
 {
   ofstream logFile{"log.dat"};
@@ -629,7 +770,7 @@ void showGame()
 
 /**
   * @brief finds current player for the exisisting round
-  * @return current player 0 for W, 1 for B
+  * @return current player: char
   */
 char getCurrentPlayer()
 {
@@ -642,13 +783,21 @@ char getCurrentPlayer()
   return player;
 }
 
-char getOppositePlayer(char currentPlayer)
+/**
+  * @brief returns the opposite player
+  * @param player: char, the requested player
+  * @return the other player
+  */
+char getOppositePlayer(char player)
 {
-  if (currentPlayer == 'B')
+  if (player == 'B')
     return 'W';
   return 'B';
 }
 
+/**
+  * @brief toggles the current player
+  */
 void togglePlayer()
 {
   char player;
